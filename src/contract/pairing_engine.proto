@@ -9,9 +9,9 @@ message Table {
 }
 
 enum ByeType {
-    automatic = 1;
-    on_demand = 2;
-    late_entry = 3;
+    automatic = 0;
+    on_demand = 1;
+    late_entry = 2;
 }
 
 message Bye {
