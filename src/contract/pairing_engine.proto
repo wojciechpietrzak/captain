@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package pairing_engine;
+
+message Table {
+    int32 table_no = 1;
+    int32 white_player_start_no = 2;
+    int32 black_player_start_no = 3;
+}
+
+enum ByeType {
+    automatic = 1;
+    on_demand = 2;
+    late_entry = 3;
+}
+
+message Bye {
+    ByeType bye_type = 1;
+    float bye_val = 2;
+}
+
+message EmptyTable {
+    int32 table_no = 1;
+    int32 player_start_no = 2;
+    Bye bye = 3;
+}
+
+message Result {
+    float points = 1;
+    bool played = 2;
+}
+
+message Game {
+    Table table = 1;
+    Result white_result = 2; // null if game in progress
+    Result black_result = 3; // null if game in progress
+}
+
+message Round {
+    repeated Game games = 1;
+    repeated EmptyTable byes = 2;
+}
+
+message Withdrawal {
+    int32 round_no = 1;
+    Bye bye = 2;
+}
+
+message Player {
+    int32 start_no = 1;
+    string identity = 2;
+    repeated Withdrawal withdrawals = 3;
+}
+
+message Tournament { // assuming Swiss Individual Dutch by now
+    int32 all_rounds_no = 1;
+    repeated Round rounds = 2;
+    repeated Player players = 3;
+}
+
+message CalculatePairingRequest {
+    Tournament tournament = 1;
+}
+
+message Pairing {
+    repeated Table tables = 1;
+    repeated EmptyTable empty_tables = 2;
+}
+
+message CalculatePairingResponse {
+    Pairing pairing = 1;
+}
+
+service PairingEngine {
+    rpc CalculatePairing (CalculatePairingRequest) returns (CalculatePairingResponse);
+}
