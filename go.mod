@@ -1,4 +1,4 @@
-module pairing_engine
+module captain
 
 go 1.23.2
 

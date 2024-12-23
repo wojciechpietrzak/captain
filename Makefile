@@ -1,29 +1,27 @@
-# Define variables
 PROTOC = protoc
-PROTOC_GEN_GO = $(shell which protoc-gen-go)
-PROTOC_GEN_GO_GRPC = $(shell which protoc-gen-go-grpc)
+PROTOC_GEN_GO = protoc-gen-go
+PROTOC_GEN_GRPC_GO = protoc-gen-go-grpc
 
-PROTO_DIR = src/contract
-OUT_DIR = .
+# Directories
+CONTRACT_DIR = contract
+SRC_DIR = src
+# Proto files
+PROTO_FILES = $(wildcard $(CONTRACT_DIR)/*.proto)
 
-PROTO_FILES = $(wildcard $(PROTO_DIR)/*.proto)
+# Targets
+all: generate
 
-# Default target
-all: check-plugins generate
-
-# Check if required plugins are installed
-check-plugins:
-ifndef PROTOC_GEN_GO
-	$(error "protoc-gen-go is not installed. Run: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest")
-endif
-ifndef PROTOC_GEN_GO_GRPC
-	$(error "protoc-gen-go-grpc is not installed. Run: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest")
-endif
-
-# Generate Go code from .proto files
 generate:
-	$(PROTOC) -I src --go_out=$(OUT_DIR) --go-grpc_out=$(OUT_DIR) $(PROTO_FILES)
+	@for proto in $(PROTO_FILES); do \
+		base_name=$$(basename $$proto .proto); \
+		mkdir -p $(SRC_DIR)/$$base_name; \
+		$(PROTOC) --go_out=$(SRC_DIR)/$$base_name --go_opt=paths=source_relative \
+		--go-grpc_out=$(SRC_DIR)/$$base_name --go-grpc_opt=paths=source_relative \
+		$$proto; \
+		mv $(SRC_DIR)/$$base_name/$(CONTRACT_DIR)/* $(SRC_DIR)/$$base_name; \
+		rmdir $(SRC_DIR)/$$base_name/$(CONTRACT_DIR); \
+	done
 
-# Clean generated files (optional)
 clean:
-	rm -f src/pairing_engine/*.pb.go
+	rm -f $(SRC_DIR)/*/*.pb.go
+

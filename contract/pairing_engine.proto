@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package pairing_engine;
 
-option go_package = "src/pairing_engine";
+option go_package = "contract/pairing_engine";
 
 message Table {
     int32 table_no = 1;
