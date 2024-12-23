@@ -26,3 +26,6 @@ go.work.sum
 
 # protobuf generated files
 *.pb.go
+
+# Exclude VSCode workspace settings
+.vscode/
