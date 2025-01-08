@@ -1,15 +1,14 @@
 package main
 
 import (
+	pb "captain/src/pairing_engine"
+	"captain/src/pairing_engine/server"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-
-	pb "captain/src/pairing_engine"
-	"captain/src/pairing_engine/server"
-
-	"google.golang.org/protobuf/proto"
 )
 
 func convertTablesToGames(tables []*pb.Table) []*pb.Game {
@@ -38,13 +37,18 @@ func main() {
 	}
 
 	var tournament pb.Tournament
-	if err := proto.Unmarshal(data, &tournament); err != nil {
+	if err := json.Unmarshal(data, &tournament); err != nil {
 		log.Fatalf("Failed to unmarshal JSON to protobuf: %v", err)
+	}
+
+	// Ensure all_rounds_no is populated (set default if not present)
+	if tournament.AllRoundsNo == 0 {
+		tournament.AllRoundsNo = 5 // Set default value
 	}
 
 	// Use the server implementation to calculate pairing
 	engine := server.PairingEngineServer{}
-	resp, err := engine.CalculatePairing(nil, &pb.CalculatePairingRequest{Tournament: &tournament})
+	resp, err := engine.CalculatePairing(context.TODO(), &pb.CalculatePairingRequest{Tournament: &tournament})
 	if err != nil {
 		log.Fatalf("Failed to calculate pairing: %v", err)
 	}
@@ -56,10 +60,10 @@ func main() {
 	}
 	tournament.Rounds = append(tournament.Rounds, &newRound)
 
-	// Save updated tournament to JSON
-	updatedData, err := proto.Marshal(&tournament)
+	// Save updated tournament to JSON with indentation
+	updatedData, err := json.MarshalIndent(&tournament, "", "  ") // Pretty print with indentation
 	if err != nil {
-		log.Fatalf("Failed to marshal protobuf to JSON: %v", err)
+		log.Fatalf("Failed to marshal tournament to JSON: %v", err)
 	}
 	if err := ioutil.WriteFile(tournamentFile, updatedData, 0644); err != nil {
 		log.Fatalf("Failed to write file: %v", err)

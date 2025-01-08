@@ -12,5 +12,10 @@ type PairingEngineServer struct {
 // Implement the CalculatePairing RPC
 func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.CalculatePairingRequest) (*pb.CalculatePairingResponse, error) {
 	// Logic for pairing goes here
-	return &pb.CalculatePairingResponse{}, nil
+	return &pb.CalculatePairingResponse{
+		Pairing: &pb.Pairing{
+			Tables:      []*pb.Table{},      // TODO: implement me
+			EmptyTables: []*pb.EmptyTable{}, // TODO: implement me
+		},
+	}, nil
 }

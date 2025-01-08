@@ -15,7 +15,7 @@ def load_tournament(tournament_name):
             return json.load(f), tournament_file
     else:
         print(f"Tournament file '{tournament_file}' not found. Starting a new tournament.")
-        return {"all_rounds_no": 0, "rounds": [], "players": []}, tournament_file
+        return {"all_rounds_no": 5, "rounds": [], "players": []}, tournament_file
 
 def save_tournament(tournament, tournament_file):
     with open(tournament_file, 'w') as f:
@@ -65,6 +65,7 @@ def main():
             save_tournament(tournament, tournament_file)
         elif choice == '4':
             generate_pairing(tournament_file)
+            tournament, tournament_file = load_tournament(tournament_name)
         elif choice == '5':
             save_tournament(tournament, tournament_file)
             break

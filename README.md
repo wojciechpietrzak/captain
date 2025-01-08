@@ -12,6 +12,9 @@ go run src/pairing_engine/main/main.go
 ```
 
 ## Run Test Interface
+
+(pairing engine must be running elsewhere for this to work)
+
 ```bash
 cd tools
 python3 tournament_manager.py
