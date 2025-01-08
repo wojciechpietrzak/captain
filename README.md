@@ -8,5 +8,5 @@ make
 
 ## Run Pairing Engine
 ```bash
-go run src/pairing_engine/server/server.go
+go run src/pairing_engine/main/main.go
 ```
