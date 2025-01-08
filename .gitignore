@@ -29,3 +29,6 @@ go.work.sum
 
 # Exclude VSCode workspace settings
 .vscode/
+
+# Exclude test tournaments
+tools/tournaments/*
