@@ -22,8 +22,8 @@ def save_tournament(tournament, tournament_file):
         json.dump(tournament, f, indent=4)
     print(f"Tournament saved to {tournament_file}")
 
-def display_tournament(tournament_path):
-    with open(tournament_path, 'r', encoding='utf-8') as file:
+def display_tournament(tournament_file):
+    with open(tournament_file, 'r', encoding='utf-8') as file:
         tournament = json.load(file)
     print(json.dumps(tournament, indent=4, ensure_ascii=False))
 
@@ -56,11 +56,13 @@ def main():
         print("5. Save and Exit")
         choice = input("Choose an option: ")
         if choice == '1':
-            display_tournament(tournament)
+            display_tournament(tournament_file)
         elif choice == '2':
             add_player(tournament)
+            save_tournament(tournament, tournament_file)
         elif choice == '3':
             enter_results(tournament)
+            save_tournament(tournament, tournament_file)
         elif choice == '4':
             generate_pairing(tournament_file)
         elif choice == '5':
