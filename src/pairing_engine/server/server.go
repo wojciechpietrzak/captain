@@ -29,17 +29,8 @@ func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.Calc
 	}
 
 	var currentRoundPlayers []*pb.Player
-	var withdrawn bool
-
 	for _, player := range req.Tournament.Players {
-		withdrawn = false
-		for _, withdrawal := range player.Withdrawals {
-			if (int)(withdrawal.RoundNo) == currentRound {
-				withdrawn = true
-				break
-			}
-		}
-		if !withdrawn {
+		if !isWithdrawn(player, currentRound) {
 			currentRoundPlayers = append(currentRoundPlayers, player)
 		}
 	}
@@ -52,4 +43,13 @@ func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.Calc
 			EmptyTables: []*pb.EmptyTable{}, // TODO: implement me
 		},
 	}, nil
+}
+
+func isWithdrawn(player *pb.Player, round int) bool {
+	for _, withdrawal := range player.Withdrawals {
+		if int(withdrawal.RoundNo) == round {
+			return true
+		}
+	}
+	return false
 }
