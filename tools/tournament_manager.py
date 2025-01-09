@@ -19,7 +19,7 @@ def load_tournament(tournament_name):
 
 def save_tournament(tournament, tournament_file):
     with open(tournament_file, 'w') as f:
-        json.dump(tournament, f, indent=4)
+        json.dump(tournament, f, indent=2)
     print(f"Tournament saved to {tournament_file}")
 
 def display_tournament(tournament_file):
