@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 )
 
 type PairingEngineServer struct {
@@ -37,6 +38,10 @@ func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.Calc
 
 	log.Printf("Current round players: %v", currentRoundPlayers)
 
+	var brackets = initBrackets(req.Tournament)
+
+	log.Printf("Initial brackets for round %v pairing: %v", currentRound, brackets)
+
 	return &pb.CalculatePairingResponse{
 		Pairing: &pb.Pairing{
 			Tables:      []*pb.Table{},      // TODO: implement me
@@ -52,4 +57,101 @@ func isWithdrawn(player *pb.Player, round int) bool {
 		}
 	}
 	return false
+}
+
+type ScoreGroup struct {
+	Score   float64
+	Players []*pb.Player
+}
+
+type Bracket = []ScoreGroup
+
+func initBrackets(tournament *pb.Tournament) []Bracket {
+	// the initial brackets are always homogenous,
+	// i.e. they contain only one scoregroup each
+
+	playerScores := make(map[int32]float64)
+
+	for _, player := range tournament.Players {
+		playerScores[player.StartNo] = 0
+	}
+
+	for _, round := range tournament.Rounds {
+		// Set to ensure a player does not appear twice in a round
+		playersInRound := make(map[int32]bool)
+
+		// Process games
+		for _, game := range round.Games {
+			if game.Table.WhitePlayerStartNo != 0 {
+				startNo := game.Table.WhitePlayerStartNo
+				if playersInRound[startNo] {
+					log.Panicf("Player %d appears multiple times in a single round", startNo)
+				}
+				playersInRound[startNo] = true
+
+				points := float64(0.5) // Default value if result is missing
+				if game.WhiteResult.Points == 0 || game.WhiteResult.Points == 0.5 || game.WhiteResult.Points == 1 {
+					points = float64(game.WhiteResult.Points)
+				} else {
+					log.Panicf("Invalid result points for player %d: %f", startNo, game.WhiteResult.Points)
+				}
+				playerScores[startNo] += points
+			}
+
+			if game.Table.BlackPlayerStartNo != 0 {
+				startNo := game.Table.BlackPlayerStartNo
+				if playersInRound[startNo] {
+					log.Panicf("Player %d appears multiple times in a single round", startNo)
+				}
+				playersInRound[startNo] = true
+
+				points := float64(0.5) // Default value if result is missing
+				if game.BlackResult.Points == 0 || game.BlackResult.Points == 0.5 || game.BlackResult.Points == 1 {
+					points = float64(game.BlackResult.Points)
+				} else {
+					log.Panicf("Invalid result points for player %d: %f", startNo, game.BlackResult.Points)
+				}
+				playerScores[startNo] += points
+			}
+		}
+
+		// Process byes
+		for _, bye := range round.Byes {
+			startNo := bye.PlayerStartNo
+			if playersInRound[startNo] {
+				log.Panicf("Player %d appears multiple times in a single round", startNo)
+			}
+			playersInRound[startNo] = true
+
+			playerScores[startNo] += float64(bye.Bye.ByeVal)
+		}
+	}
+
+	scoreGroups := make(map[float64][]*pb.Player)
+	for _, player := range tournament.Players {
+		score := playerScores[player.StartNo]
+		scoreGroups[score] = append(scoreGroups[score], player)
+	}
+
+	var brackets []Bracket
+	var sortedScores []float64
+	for score := range scoreGroups {
+		sortedScores = append(sortedScores, score)
+	}
+	sort.Sort(sort.Reverse(sort.Float64Slice(sortedScores)))
+
+	for _, score := range sortedScores {
+		players := scoreGroups[score]
+		sort.Slice(players, func(i, j int) bool {
+			return players[i].StartNo < players[j].StartNo
+		})
+		brackets = append(brackets, []ScoreGroup{
+			{
+				Score:   score,
+				Players: players,
+			},
+		})
+	}
+
+	return brackets
 }
