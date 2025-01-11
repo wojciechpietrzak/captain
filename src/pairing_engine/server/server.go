@@ -14,6 +14,9 @@ type PairingEngineServer struct {
 
 // Implement the CalculatePairing RPC
 func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.CalculatePairingRequest) (*pb.CalculatePairingResponse, error) {
+	tables := []*pb.Table{}
+	emptyTables := []*pb.EmptyTable{}
+
 	allRounds := int(req.Tournament.AllRoundsNo)
 	currentRound := len(req.Tournament.Rounds) + 1
 
@@ -29,34 +32,51 @@ func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.Calc
 		log.Println("Applying last round special rules.")
 	}
 
-	var currentRoundPlayers []*pb.Player
+	var currentRoundPairedPlayers []*pb.Player
+
 	for _, player := range req.Tournament.Players {
-		if !isWithdrawn(player, currentRound) {
-			currentRoundPlayers = append(currentRoundPlayers, player)
+		withdrawal := getWithdrawal(player, currentRound)
+		if withdrawal == nil {
+			currentRoundPairedPlayers = append(currentRoundPairedPlayers, player)
+		} else {
+			emptyTables = append(emptyTables, &pb.EmptyTable{
+				TableNo:       0, // to be adjusted later
+				PlayerStartNo: player.StartNo,
+				Bye:           withdrawal,
+			})
 		}
 	}
 
-	log.Printf("Current round players: %v", currentRoundPlayers)
+	log.Printf("Current round paired players: %v", currentRoundPairedPlayers)
 
 	var brackets = initBrackets(req.Tournament)
 
 	log.Printf("Initial brackets for round %v pairing: %v", currentRound, brackets)
 
+	// Last step: correct table numbers
+
+	for i, table := range tables {
+		table.TableNo = int32(i + 1)
+	}
+	for i, emptyTable := range emptyTables {
+		emptyTable.TableNo = int32(i + 1 + len(tables))
+	}
+
 	return &pb.CalculatePairingResponse{
 		Pairing: &pb.Pairing{
-			Tables:      []*pb.Table{},      // TODO: implement me
-			EmptyTables: []*pb.EmptyTable{}, // TODO: implement me
+			Tables:      tables, // TODO: implement me
+			EmptyTables: emptyTables,
 		},
 	}, nil
 }
 
-func isWithdrawn(player *pb.Player, round int) bool {
+func getWithdrawal(player *pb.Player, round int) *pb.Bye {
 	for _, withdrawal := range player.Withdrawals {
 		if int(withdrawal.RoundNo) == round {
-			return true
+			return withdrawal.Bye
 		}
 	}
-	return false
+	return nil
 }
 
 type ScoreGroup struct {
