@@ -18,7 +18,7 @@ enum ByeType {
 
 message Bye {
     ByeType bye_type = 1;
-    float bye_val = 2;
+    double bye_val = 2;
 }
 
 message EmptyTable {
@@ -28,7 +28,7 @@ message EmptyTable {
 }
 
 message Result {
-    float points = 1;
+    double points = 1;
     bool played = 2;
 }
 

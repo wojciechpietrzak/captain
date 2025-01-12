@@ -109,9 +109,9 @@ func initBrackets(tournament *pb.Tournament) []Bracket {
 				}
 				playersInRound[startNo] = true
 
-				points := float64(0.5) // Default value if result is missing
+				points := 0.5 // Default value if result is missing
 				if game.WhiteResult.Points == 0 || game.WhiteResult.Points == 0.5 || game.WhiteResult.Points == 1 {
-					points = float64(game.WhiteResult.Points)
+					points = game.WhiteResult.Points
 				} else {
 					log.Panicf("Invalid result points for player %d: %f", startNo, game.WhiteResult.Points)
 				}
@@ -125,9 +125,9 @@ func initBrackets(tournament *pb.Tournament) []Bracket {
 				}
 				playersInRound[startNo] = true
 
-				points := float64(0.5) // Default value if result is missing
+				points := 0.5 // Default value if result is missing
 				if game.BlackResult.Points == 0 || game.BlackResult.Points == 0.5 || game.BlackResult.Points == 1 {
-					points = float64(game.BlackResult.Points)
+					points = game.BlackResult.Points
 				} else {
 					log.Panicf("Invalid result points for player %d: %f", startNo, game.BlackResult.Points)
 				}
@@ -143,7 +143,7 @@ func initBrackets(tournament *pb.Tournament) []Bracket {
 			}
 			playersInRound[startNo] = true
 
-			playerScores[startNo] += float64(bye.Bye.ByeVal)
+			playerScores[startNo] += bye.Bye.ByeVal
 		}
 	}
 
