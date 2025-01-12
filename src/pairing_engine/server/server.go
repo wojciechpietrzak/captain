@@ -32,6 +32,10 @@ func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.Calc
 		log.Println("Applying last round special rules.")
 	}
 
+	history := getHistory(req.Tournament)
+
+	log.Printf("History: %+v", history)
+
 	var currentRoundPairedPlayers []*pb.Player
 
 	for _, player := range req.Tournament.Players {
@@ -174,4 +178,171 @@ func initBrackets(tournament *pb.Tournament) []Bracket {
 	}
 
 	return brackets
+}
+
+const (
+	NoOpponent = 0
+
+	NoColour    = 0
+	WhiteColour = 1
+	BlackColour = -1
+
+	NoFloat   = 0
+	UpFloat   = 1
+	DownFloat = -1
+)
+
+type PlayerRoundCard struct {
+	OpponentNo int32
+	RoundNo    int
+	Colour     int
+	Result     float64
+	Float      int
+	Progress   float64
+}
+
+type PlayerHistory struct {
+	Player  *pb.Player
+	History []PlayerRoundCard
+}
+
+func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
+	// Initialize player histories
+	playersHistory := make(map[int32]PlayerHistory)
+	for _, player := range tournament.Players {
+		playersHistory[player.StartNo] = PlayerHistory{
+			Player:  player,
+			History: []PlayerRoundCard{},
+		}
+	}
+
+	// Iterate through rounds to fill player histories
+	for roundIdx, round := range tournament.Rounds {
+		roundNo := roundIdx + 1
+
+		// Map to track players already paired in this round
+		pairedPlayers := make(map[int32]bool)
+
+		// Process games
+		for _, game := range round.Games {
+			white := game.Table.WhitePlayerStartNo
+			black := game.Table.BlackPlayerStartNo
+
+			// Add to white player's history
+			if whiteHistory, ok := playersHistory[white]; ok {
+				points := 0.5
+				if game.WhiteResult != nil {
+					points = game.WhiteResult.Points
+				}
+				progress := points
+				if roundIdx > 0 {
+					progress += whiteHistory.History[roundIdx-1].Progress
+				}
+				floatVal := NoFloat
+				if roundIdx > 0 {
+					if blackHistory, ok := playersHistory[black]; ok {
+						prevWhiteProgress := whiteHistory.History[roundIdx-1].Progress
+						prevBlackProgress := blackHistory.History[roundIdx-1].Progress
+						if prevWhiteProgress > prevBlackProgress {
+							floatVal = DownFloat
+						} else if prevWhiteProgress < prevBlackProgress {
+							floatVal = UpFloat
+						}
+					}
+				}
+				whiteHistory.History = append(whiteHistory.History, PlayerRoundCard{
+					OpponentNo: black,
+					RoundNo:    roundNo,
+					Colour:     WhiteColour,
+					Result:     points,
+					Float:      floatVal,
+					Progress:   progress,
+				})
+				playersHistory[white] = whiteHistory
+				pairedPlayers[white] = true
+			}
+
+			// Add to black player's history
+			if blackHistory, ok := playersHistory[black]; ok {
+				points := 0.5
+				if game.BlackResult != nil {
+					points = game.BlackResult.Points
+				}
+				progress := points
+				if roundIdx > 0 {
+					progress += blackHistory.History[roundIdx-1].Progress
+				}
+				floatVal := NoFloat
+				if roundIdx > 0 {
+					if whiteHistory, ok := playersHistory[white]; ok {
+						prevBlackProgress := blackHistory.History[roundIdx-1].Progress
+						prevWhiteProgress := whiteHistory.History[roundIdx-1].Progress
+						if prevBlackProgress > prevWhiteProgress {
+							floatVal = DownFloat
+						} else if prevBlackProgress < prevWhiteProgress {
+							floatVal = UpFloat
+						}
+					}
+				}
+				blackHistory.History = append(blackHistory.History, PlayerRoundCard{
+					OpponentNo: white,
+					RoundNo:    roundNo,
+					Colour:     BlackColour,
+					Result:     points,
+					Float:      floatVal,
+					Progress:   progress,
+				})
+				playersHistory[black] = blackHistory
+				pairedPlayers[black] = true
+			}
+		}
+
+		// Process byes
+		for _, bye := range round.Byes {
+			playerNo := bye.PlayerStartNo
+			if playerHistory, ok := playersHistory[playerNo]; ok {
+				points := bye.Bye.ByeVal
+				floatVal := NoFloat
+				if points > 0 {
+					floatVal = DownFloat
+				}
+				progress := points
+				if roundIdx > 0 {
+					progress += playerHistory.History[roundIdx-1].Progress
+				}
+				playerHistory.History = append(playerHistory.History, PlayerRoundCard{
+					OpponentNo: NoOpponent,
+					RoundNo:    roundNo,
+					Colour:     NoColour,
+					Result:     points,
+					Float:      floatVal,
+					Progress:   progress,
+				})
+				playersHistory[playerNo] = playerHistory
+				pairedPlayers[playerNo] = true
+			}
+		}
+
+		// Add missing players with default values
+		for _, player := range tournament.Players {
+			if !pairedPlayers[player.StartNo] {
+				playerHistory := playersHistory[player.StartNo]
+				progress := 0.0
+				if roundIdx > 0 {
+					progress = playerHistory.History[roundIdx-1].Progress
+				}
+				playerHistory.History = append(playerHistory.History, PlayerRoundCard{
+					OpponentNo: NoOpponent,
+					RoundNo:    roundNo,
+					Colour:     NoColour,
+					Result:     0,
+					Float:      NoFloat,
+					Progress:   progress,
+				})
+				playersHistory[player.StartNo] = playerHistory
+			}
+		}
+	}
+
+	return playersHistory
 }
