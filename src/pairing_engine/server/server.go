@@ -32,7 +32,7 @@ func (s *PairingEngineServer) CalculatePairing(ctx context.Context, req *pb.Calc
 		log.Println("Applying last round special rules.")
 	}
 
-	history := getHistory(req.Tournament)
+	history := getCards(req.Tournament)
 
 	log.Printf("History: %+v", history)
 
@@ -201,18 +201,22 @@ type PlayerRoundCard struct {
 	Progress   float64
 }
 
-type PlayerHistory struct {
-	Player  *pb.Player
-	History []PlayerRoundCard
+type PlayerCard struct {
+	Player           *pb.Player
+	History          []PlayerRoundCard
+	ColourDifference int
+	LastColour       int
 }
 
-func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
+func getCards(tournament *pb.Tournament) map[int32]PlayerCard {
 	// Initialize player histories
-	playersHistory := make(map[int32]PlayerHistory)
+	playersCards := make(map[int32]PlayerCard)
 	for _, player := range tournament.Players {
-		playersHistory[player.StartNo] = PlayerHistory{
-			Player:  player,
-			History: []PlayerRoundCard{},
+		playersCards[player.StartNo] = PlayerCard{
+			Player:           player,
+			History:          []PlayerRoundCard{},
+			ColourDifference: 0,
+			LastColour:       0,
 		}
 	}
 
@@ -229,7 +233,7 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 			black := game.Table.BlackPlayerStartNo
 
 			// Add to white player's history
-			if whiteHistory, ok := playersHistory[white]; ok {
+			if whiteHistory, ok := playersCards[white]; ok {
 				points := 0.5
 				if game.WhiteResult != nil {
 					points = game.WhiteResult.Points
@@ -240,7 +244,7 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 				}
 				floatVal := NoFloat
 				if roundIdx > 0 {
-					if blackHistory, ok := playersHistory[black]; ok {
+					if blackHistory, ok := playersCards[black]; ok {
 						prevWhiteProgress := whiteHistory.History[roundIdx-1].Progress
 						prevBlackProgress := blackHistory.History[roundIdx-1].Progress
 						if prevWhiteProgress > prevBlackProgress {
@@ -258,12 +262,14 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 					Float:      floatVal,
 					Progress:   progress,
 				})
-				playersHistory[white] = whiteHistory
+				whiteHistory.ColourDifference += WhiteColour
+				whiteHistory.LastColour = WhiteColour
+				playersCards[white] = whiteHistory
 				pairedPlayers[white] = true
 			}
 
 			// Add to black player's history
-			if blackHistory, ok := playersHistory[black]; ok {
+			if blackHistory, ok := playersCards[black]; ok {
 				points := 0.5
 				if game.BlackResult != nil {
 					points = game.BlackResult.Points
@@ -274,7 +280,7 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 				}
 				floatVal := NoFloat
 				if roundIdx > 0 {
-					if whiteHistory, ok := playersHistory[white]; ok {
+					if whiteHistory, ok := playersCards[white]; ok {
 						prevBlackProgress := blackHistory.History[roundIdx-1].Progress
 						prevWhiteProgress := whiteHistory.History[roundIdx-1].Progress
 						if prevBlackProgress > prevWhiteProgress {
@@ -292,7 +298,9 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 					Float:      floatVal,
 					Progress:   progress,
 				})
-				playersHistory[black] = blackHistory
+				blackHistory.ColourDifference += BlackColour
+				blackHistory.LastColour = BlackColour
+				playersCards[black] = blackHistory
 				pairedPlayers[black] = true
 			}
 		}
@@ -300,7 +308,7 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 		// Process byes
 		for _, bye := range round.Byes {
 			playerNo := bye.PlayerStartNo
-			if playerHistory, ok := playersHistory[playerNo]; ok {
+			if playerHistory, ok := playersCards[playerNo]; ok {
 				points := bye.Bye.ByeVal
 				floatVal := NoFloat
 				if points > 0 {
@@ -318,7 +326,7 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 					Float:      floatVal,
 					Progress:   progress,
 				})
-				playersHistory[playerNo] = playerHistory
+				playersCards[playerNo] = playerHistory
 				pairedPlayers[playerNo] = true
 			}
 		}
@@ -326,7 +334,7 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 		// Add missing players with default values
 		for _, player := range tournament.Players {
 			if !pairedPlayers[player.StartNo] {
-				playerHistory := playersHistory[player.StartNo]
+				playerHistory := playersCards[player.StartNo]
 				progress := 0.0
 				if roundIdx > 0 {
 					progress = playerHistory.History[roundIdx-1].Progress
@@ -339,10 +347,10 @@ func getHistory(tournament *pb.Tournament) map[int32]PlayerHistory {
 					Float:      NoFloat,
 					Progress:   progress,
 				})
-				playersHistory[player.StartNo] = playerHistory
+				playersCards[player.StartNo] = playerHistory
 			}
 		}
 	}
 
-	return playersHistory
+	return playersCards
 }
